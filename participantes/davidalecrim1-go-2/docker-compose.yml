@@ -1,12 +1,13 @@
 x-service-templates:
   go-backend: &go-backend
-    image: davidalecrim1/rinha-with-go-2025:v0.11-mongodb
+    image: davidalecrim1/rinha-with-go-2025:v0.12-mongodb
     networks:
       - app
       - payment-processor
     depends_on:
       - redis
       - mongodb
+    restart: on-failure
 
 services:
   go-backend-1:
@@ -21,6 +22,8 @@ services:
       - ENABLE_PROFILING=false
       - MONGO_ENDPOINT=mongodb://mongodb:27017
       - MONGO_DATABASE=payments-db
+      - WORKERS=100
+      - RETRY_QUEUE_SIZE=6000
     networks:
       - app
       - payment-processor
@@ -28,7 +31,7 @@ services:
       resources:
         limits:
           cpus: "0.4"
-          memory: "85MB"
+          memory: "65MB"
 
   go-backend-2:
     <<: *go-backend
@@ -42,6 +45,8 @@ services:
       - ENABLE_PROFILING=false
       - MONGO_ENDPOINT=mongodb://mongodb:27017
       - MONGO_DATABASE=payments-db
+      - WORKERS=100
+      - RETRY_QUEUE_SIZE=6000
     networks:
       - app
       - payment-processor
@@ -49,7 +54,7 @@ services:
       resources:
         limits:
           cpus: "0.4"
-          memory: "85MB"
+          memory: "65MB"
 
   redis:
     image: redis:8.0-alpine
@@ -62,19 +67,23 @@ services:
       resources:
         limits:
           cpus: "0.1"
-          memory: "50MB"
+          memory: "30MB"
 
   mongodb:
     container_name: mongodb
     image: mongo:8.0.11
+    restart: on
     networks:
       - app
       - payment-processor
+    volumes:
+      - ./mongod.conf:/etc/mongod.conf:ro
+    command: ["mongod", "--config", "/etc/mongod.conf"]
     deploy:
       resources:
         limits:
           cpus: "0.3"
-          memory: "100MB"
+          memory: "160MB"
 
   load-balancer:
     container_name: load-balancer-nginx
